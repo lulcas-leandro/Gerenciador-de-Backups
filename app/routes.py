@@ -51,7 +51,7 @@ def agendar():
 
     return redirect(url_for('principal.painel'))
 
-routes_bp.route('/agendamento/excluir/<job_id>')
+@routes_bp.route('/agendamento/excluir/<job_id>')
 def excluir_agendamento(job_id):
     if agendador.remover_agendamento(job_id):
         flash("Agendamento removido com sucesso.", 'success')
