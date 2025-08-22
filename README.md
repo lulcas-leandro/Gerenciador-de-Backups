@@ -21,7 +21,7 @@ Este é um sistema web simples para gerenciar backups de bancos de dados que rod
 1.  **Clone o repositório:**
 
     ```bash
-    git clone https://github.com/seu-usuario/gerenciador-de-backups.git
+    https://github.com/lulcas-leandro/Gerenciador-de-Backups.git
     cd gerenciador-de-backups
     ```
 
