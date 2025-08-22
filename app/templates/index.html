@@ -1,71 +1,194 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciador de Backups</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <nav class="navbar navbar-dark bg-dark"><div class="container-fluid"><a class="navbar-brand">Gerenciador de Backups</a></div></nav>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Gerenciador de Backups de Docker</a>
+        </div>
+    </nav>
     <div class="container mt-4">
         <h1 class="mb-4">Painel de Controle</h1>
+        {# Seção para exibir mensagens flash (sucesso, erro) #}
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
 
-        <h2>Contêineres Ativos</h2>
-        {% if containers %}
-            <table class="table table-hover">
-                <thead class="table-dark"><tr><th>Nome</th><th>ID</th><th>Imagem</th><th>Ações</th></tr></thead>
-                <tbody>
-                {% for c in containers %}
-                    <tr><td>{{ c.nome }}</td><td>{{ c.id }}</td><td>{{ c.imagem }}</td><td><a href="{{ url_for('principal.backup', container_id=c.id) }}" class="btn btn-primary btn-sm">Fazer Backup</a></td></tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <div class="alert alert-warning">Nenhum contêiner de banco de dados ativo.</div>
-        {% endif %}
+        <div class="card mt-5">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Contêineres Ativos</h2>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Contêineres de banco de dados em execução.</p>
+                {% if containers %}
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Nome do Contêiner</th>
+                                <th>ID</th>
+                                <th>Imagem</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for container in containers %}
+                            <tr>
+                                <td>{{ container.nome }}</td>
+                                <td>{{ container.id }}</td>
+                                <td>{{ container.imagem }}</td>
+                                <td>
+                                    <a href="{{ url_for('principal.backup', container_id=container.id) }}" class="btn btn-primary btn-sm">Fazer Backup Agora</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="alert alert-warning" role="alert">
+                        Nenhum contêiner de banco de dados ativo encontrado. Verifique se o serviço Docker está em execução.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
 
-        <h2 class="mt-5">Backups Existentes</h2>
-        {% if backups %}
-            <table class="table table-hover">
-                <thead class="table-dark"><tr><th>Arquivo</th><th>Data</th><th>Tamanho (KB)</th><th>Ações</th></tr></thead>
-                <tbody>
-                {% for b in backups %}
-                    <tr>
-                        <td>{{ b.nome_arquivo }}</td><td>{{ b.data }}</td><td>{{ b.tamanho_kb }}</td>
-                        <td>
-                            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalRestauracao" data-filename="{{ b.nome_arquivo }}">Restaurar</button>
-                            <a href="{{ url_for('principal.excluir', nome_arquivo=b.nome_arquivo) }}" class="btn btn-danger btn-sm" onclick="return confirm('Excluir este backup? A ação é irreversível.');">Excluir</a>
-                        </td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <div class="alert alert-info">Nenhum backup criado.</div>
-        {% endif %}
+        <div class="card mt-5">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Agendamento de Backups</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Novo Agendamento</h5>
+                        <form action="{{ url_for('principal.agendar') }}" method="POST">
+                            <div class="mb-3">
+                                <label for="container_id" class="form-label">Selecione o Contêiner</label>
+                                <select class="form-select" id="container_id" name="container_id" required>
+                                    <option value="" disabled selected>Escolha um contêiner...</option>
+                                    {% for c in containers %}
+                                        <option value="{{ c.id }}|{{ c.nome }}">{{ c.nome }} ({{ c.imagem }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="backup_time" class="form-label">Horário do Backup (diário)</label>
+                                <input type="time" class="form-control" id="backup_time" name="backup_time" required>
+                            </div>
+                            <button type="submit" class="btn btn-success">Agendar</button>
+                        </form>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Agendamentos Ativos</h5>
+                        {% if agendamentos %}
+                            <ul class="list-group">
+                                {% for agendamento in agendamentos %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ agendamento.nome }}</strong><br>
+                                        <small class="text-muted">Próxima execução: {{ agendamento.proxima_execucao }}</small>
+                                    </div>
+                                    <a href="{{ url_for('principal.excluir_agendamento', job_id=agendamento.id) }}" 
+                                       class="btn btn-danger btn-sm"
+                                       onclick="return confirm('Tem certeza que deseja remover este agendamento?');">
+                                        Remover
+                                    </a>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-muted">Nenhum backup automático agendado.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-5 mb-5">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Backups Existentes</h2>
+            </div>
+            <div class="card-body">
+                {% if backups %}
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Arquivo</th>
+                                <th>Data de Criação</th>
+                                <th>Tamanho (KB)</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for backup in backups %}
+                            <tr>
+                                <td>{{ backup.nome_arquivo }}</td>
+                                <td>{{ backup.data }}</td>
+                                <td>{{ backup.tamanho_kb }}</td>
+                                <td>
+                                    <button type="button" class="btn btn-success btn-sm" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#modalRestauracao" 
+                                            data-filename="{{ backup.nome_arquivo }}">
+                                        Restaurar
+                                    </button>
+                                    <a href="{{ url_for('principal.excluir', nome_arquivo=backup.nome_arquivo) }}" 
+                                       class="btn btn-danger btn-sm"
+                                       onclick="return confirm('ATENÇÃO!\n\nVocê tem CERTEZA que deseja EXCLUIR o backup \'{{ backup.nome_arquivo }}\'? Esta ação é IRREVERSÍVEL.');">
+                                        Excluir
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="alert alert-info" role="alert">
+                        Nenhum backup foi criado ainda.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
     </div>
 
-    <div class="modal fade" id="modalRestauracao" tabindex="-1">
+    <div class="modal fade" id="modalRestauracao" tabindex="-1" aria-labelledby="modalLabelRestauracao" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header"><h5 class="modal-title">Confirmar Restauração</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalLabelRestauracao">Confirmar Restauração</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
                 <form action="{{ url_for('principal.restaurar') }}" method="POST">
                     <div class="modal-body">
-                        <p>Restaurar backup: <br><strong><span id="filename-span"></span></strong></p>
-                        <p class="text-danger fw-bold">ATENÇÃO: Os dados no contêiner de destino serão substituídos.</p>
+                        <p>Você está prestes a restaurar o backup:
+                           <br><strong><span id="filename-span"></span></strong>
+                        </p>
+                        <p class="text-danger fw-bold">ATENÇÃO: Esta ação substituirá permanentemente os dados no contêiner de destino.</p>
+                        
                         <input type="hidden" name="nome_arquivo" id="hidden-filename-input">
+
                         <div class="mb-3">
                             <label for="container_id_destino" class="form-label">Selecione o contêiner de DESTINO:</label>
-                            <select class="form-select" name="container_id_destino" required>
+                            <select class="form-select" name="container_id_destino" id="container_id_destino" required>
                                 <option value="" disabled selected>Escolha um contêiner...</option>
-                                {% for c in containers %}<option value="{{ c.id }}">{{ c.nome }} ({{ c.imagem }})</option>{% endfor %}
+                                {% for c in containers %}
+                                    <option value="{{ c.id }}">{{ c.nome }} ({{ c.imagem }})</option>
+                                {% endfor %}
                             </select>
                         </div>
                     </div>
