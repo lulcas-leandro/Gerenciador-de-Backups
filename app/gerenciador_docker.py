@@ -93,12 +93,22 @@ def restaurar_backup(nome_arquivo, container_id_destino):
     try:
         exec_id = cliente.api.exec_create(container.id, cmd=comando_restauracao, stdin=True)['Id']
         socket = cliente.api.exec_start(exec_id, socket=True)
-        if hasattr(socket, '_sock'):
-            socket._sock.sendall(dados_backup)
-            socket._sock.close()
-        else:
-            socket.sendall(dados_backup)
-            socket.close()
+        # Pega o socket real para ter acesso a mais opções
+        sock = socket._sock if hasattr(socket, '_sock') else socket
+        
+        # Envia os dados do backup
+        sock.sendall(dados_backup)
+        
+        # Usa shutdown(SHUT_WR) para enviar um EOF explícito.
+        # Isso sinaliza ao psql/mysql que a transmissão de dados terminou.
+        try:
+            sock.shutdown(socket.SHUT_WR)
+        except (OSError, BrokenPipeError):
+            # Acontece se o processo do outro lado fechar a conexão primeiro
+            pass
+        
+        # Fechar o socket completamente
+        sock.close()
         
         # Aguarda a finalização da execução do comando de restauração
         while True:
