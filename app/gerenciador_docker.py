@@ -99,11 +99,18 @@ def restaurar_backup(nome_arquivo, container_id_destino):
             socket.sendall(dados_backup)
             socket.close()
         
-        res = cliente.api.exec_inspect(exec_id)
-        if res['ExitCode'] == 0:
+        # Aguarda a finalização da execução do comando de restauração
+        while True:
+            res = cliente.api.exec_inspect(exec_id)
+            if not res.get('Running'):
+                break
+            time.sleep(0.2)
+
+        # Verifica o código de saída após a conclusão
+        if res.get('ExitCode') == 0:
             return {'success': True, 'message': f'Backup {nome_arquivo} restaurado para {container.name}.'}
         else:
-            return {'success': False, 'message': f'Erro ao restaurar (código {res["ExitCode"]}).'}
+            return {'success': False, 'message': f'Erro ao restaurar (código {res.get("ExitCode")}).'}
     except Exception as e:
         return {'success': False, 'message': f'Exceção na restauração: {e}'}
 
