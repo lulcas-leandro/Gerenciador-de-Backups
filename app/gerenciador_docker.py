@@ -1,4 +1,5 @@
 import docker
+import time
 import os
 from datetime import datetime
 from config import PASTA_BACKUPS, IMAGENS_DE_BANCO_DE_DADOS
